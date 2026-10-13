@@ -27,6 +27,12 @@ __pycache__/
 *.pyc
 *.pyo
 
+# Python test / coverage outputs
+.pytest_cache/
+.coverage
+.coverage.*
+coverage-summary.json
+
 # OS / editor junk
 .DS_Store
 .AppleDouble

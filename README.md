@@ -1,5 +1,8 @@
 # homelab-ai-stack
 
+[![CI](https://github.com/sjhnandez/homelab-ai-stack/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sjhnandez/homelab-ai-stack/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/sjhnandez/homelab-ai-stack/badges/coverage.json)](https://github.com/sjhnandez/homelab-ai-stack/actions/workflows/ci.yml)
+
 A self-hosted AI stack for a single home server: [Open WebUI](https://openwebui.com/) as the chat front end, [LiteLLM](https://docs.litellm.ai/) as the one OpenAI-compatible endpoint every client talks to, [Ollama](https://ollama.com/) running local models on an 8 GB GPU, [OpenRouter](https://openrouter.ai/) free-tier models as elastic cloud fallback capacity, [SearXNG](https://docs.searxng.org/) backing private web search, and a Cloudflare Tunnel for private remote access. Everything is deployed with Docker Compose.
 
 ## Architecture

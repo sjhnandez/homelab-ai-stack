@@ -1,0 +1,100 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  compose:
+    name: compose
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate docker-compose.yaml
+        # CI has no .env (git-ignored). APPS_TUNNEL_TOKEN is a *required*
+        # variable (${APPS_TUNNEL_TOKEN:?...} in the cloudflared service), so
+        # placeholders are needed or interpolation fails; the other two would
+        # only produce warnings. Values are throwaway and never used to start
+        # anything.
+        env:
+          APPS_TUNNEL_TOKEN: ci-placeholder
+          LITELLM_MASTER_KEY: ci-placeholder
+          OPENROUTER_API_KEY: ci-placeholder
+        run: docker compose -f docker-compose.yaml config -q
+
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
+        run: pip install pytest pytest-cov
+
+      - name: Run tests with coverage
+        working-directory: litellm
+        run: >-
+          python -m pytest tests/ -q
+          --cov=update_free_models
+          --cov-report=term
+          --cov-report=json:coverage-summary.json
+
+      - name: Upload coverage summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: cov
+          path: litellm/coverage-summary.json
+
+  badges:
+    name: badges
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download coverage artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: cov
+          path: cov
+
+      # Self-contained coverage badge: write shields.io endpoint JSON and push
+      # it alone to the orphan `badges` branch (never on pull requests).
+      - name: Publish coverage badge
+        run: |
+          python3 - <<'EOF'
+          import json
+
+          with open("cov/coverage-summary.json") as f:
+              summary = json.load(f)
+          pct = round(summary["totals"]["percent_covered"])
+          color = "green" if pct >= 80 else "yellowgreen" if pct >= 60 else "yellow" if pct >= 40 else "red"
+          badge = {"schemaVersion": 1, "label": "coverage", "message": f"{pct}%", "color": color}
+          with open("/tmp/coverage.json", "w") as f:
+              f.write(json.dumps(badge) + "\n")
+          EOF
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git checkout --orphan badges
+          git rm -rf .
+          cp /tmp/coverage.json coverage.json
+          git add coverage.json
+          git commit -m 'chore: update coverage badge'
+          git push -f origin badges
