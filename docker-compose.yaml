@@ -1,0 +1,159 @@
+services:
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    restart: unless-stopped
+    ports:
+      - "3000:8080"
+    volumes:
+      - ./open-webui:/app/backend/data
+    environment:
+      - TZ=America/New_York
+      - SEARXNG_QUERY_URL=http://searxng:8080
+      # Downscale images (max 2048px) in the browser before upload so vision
+      # requests stay under OpenRouter's 30MB image-content cap (HTTP 413).
+      # Seeds the default on fresh installs only -- a value already stored in
+      # the webui.db config table (set in Admin > Settings > Documents) wins.
+      - FILE_IMAGE_COMPRESSION_WIDTH=2048
+      - FILE_IMAGE_COMPRESSION_HEIGHT=2048
+      # Lock down admin visibility of user chats. These are env-only (no UI
+      # toggle): disable the per-user "Chats" viewer / direct chat access,
+      # the full DB + chat export surfaces, and the analytics dashboard.
+      - ENABLE_ADMIN_CHAT_ACCESS=false
+      - ENABLE_ADMIN_EXPORT=false
+      - ENABLE_ADMIN_ANALYTICS=false
+      # Local Ollama runs in this stack (see ollama service below). The value
+      # is also stored in webui.db config (ollama.base_urls) — keep them in sync.
+      - OLLAMA_BASE_URL=http://ollama:11434
+    depends_on:
+      - litellm
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    # No OPENAI_API_KEY here — DeepSeek connection is added in the UI
+    # (Admin Panel > Settings > Connections) so the key never lives on disk.
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      # Models + keys live here (~6.6GB per 9B-class model). 748GB free on /.
+      - ./ollama:/root/.ollama
+    environment:
+      - TZ=America/New_York
+      # Halve KV-cache memory and use FA kernels — required for the 8GB RTX 3070 Ti
+      # to keep 9B-class models fully GPU-resident.
+      - OLLAMA_FLASH_ATTENTION=1
+      - OLLAMA_KV_CACHE_TYPE=q8_0
+      # One model at a time; anything more cannot fit in 8GB VRAM.
+      - OLLAMA_MAX_LOADED_MODELS=1
+      # 15360 = max context that keeps qwen3.5:9b 100% GPU-resident on this 8GB
+      # card (measured 2026-09-21: 16k starts ~12% CPU offload; 64k — the docs'
+      # web-search/agent minimum — is unreachable here). KV cache is q8_0,
+      # ~17KB/token; 15k costs ~450MB VRAM on top of the weights.
+      - OLLAMA_CONTEXT_LENGTH=15360
+      # Reserve ~512MB VRAM for the desktop + Jellyfin NVENC transcodes so
+      # they never fight the model for the last gigabyte of VRAM.
+      - OLLAMA_GPU_OVERHEAD=536870912
+      # Keep the model warm 30 min; reload from disk costs ~10s.
+      - OLLAMA_KEEP_ALIVE=30m
+    # Same GPU wiring as jellyfin (media-server stack): nvidia runtime is
+    # registered on this host, nvidia-container-toolkit 1.17.5. No CDI required.
+    runtime: nvidia
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  litellm:
+    image: ghcr.io/berriai/litellm:main-latest
+    container_name: litellm
+    restart: unless-stopped
+    ports:
+      - "4001:4000"
+    volumes:
+      - ./litellm/config.yaml:/app/config.yaml
+    environment:
+      - TZ=America/New_York
+      - LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  searxng:
+    image: searxng/searxng:latest
+    container_name: searxng
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./searxng:/etc/searxng
+    environment:
+      - TZ=America/New_York
+      - SEARXNG_BASE_URL=http://localhost:8081/
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+      - DAC_OVERRIDE
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: apps-cloudflared
+    command: ["tunnel", "run", "--token", "${APPS_TUNNEL_TOKEN:?Set APPS_TUNNEL_TOKEN in .env}"]
+    restart: unless-stopped
+
+  apps-portal:
+    image: nginx:alpine
+    container_name: apps-portal
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "3001:80"
+    volumes:
+      - ./portal/public:/usr/share/nginx/html:ro
+      - ./portal/nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
+    environment:
+      - TZ=America/New_York
+      - SHOW_MEDIA_APPS=${SHOW_MEDIA_APPS:-false}
+    depends_on:
+      - open-webui
+      - searxng
+      - litellm
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  apps-profile:
+    image: nginx:alpine
+    container_name: apps-profile
+    restart: unless-stopped
+    ports:
+      - "3002:80"
+    volumes:
+      # Mount the repo dir, NOT dist/ directly: deploy.sh atomically
+      # swap-renames dist (new inode), and a bind mount of dist/ itself would
+      # keep serving the old inode. nginx root is /site/dist (see nginx.conf).
+      - ./profile:/site:ro
+      - ./profile/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    environment:
+      - TZ=America/New_York
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+

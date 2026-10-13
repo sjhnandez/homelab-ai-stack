@@ -1,0 +1,18 @@
+use_default_settings: true
+
+general:
+  instance_name: SearXNG
+  debug: false
+
+search:
+  formats:
+    - html
+    - json
+
+server:
+  bind_address: 0.0.0.0
+  port: 8080
+  # generate your own with: openssl rand -hex 32  (the real settings.yml is never committed)
+  secret_key: change-me-openssl-rand-hex-32
+  limiter: false
+  image_proxy: true

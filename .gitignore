@@ -1,0 +1,38 @@
+# homelab-ai-stack — keep this public repo curated and secrets-free.
+# Everything matched here is intentionally excluded from the repository.
+
+# Local environment file with real secrets (see .env.example instead)
+.env
+.env.*
+!.env.example
+
+# SearXNG real config: contains a generated secret_key.
+# Only the placeholder example file is committed.
+searxng/settings.yml
+
+# Private nested profile-site repository — never part of this repo
+profile/
+
+# Dashboard and runtime data directories (not published)
+portal/
+open-webui/
+ollama/
+
+# Logs
+litellm/*.log
+*.log
+
+# Python bytecode / caches
+__pycache__/
+*.pyc
+*.pyo
+
+# OS / editor junk
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+desktop.ini
+*~
+*.swp
+*.swo

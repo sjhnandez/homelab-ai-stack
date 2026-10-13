@@ -1,0 +1,139 @@
+# LiteLLM Proxy Configuration
+# Documentation: https://docs.litellm.ai/docs/proxy/quick_start
+#
+# The free-model deployments are AUTO-GENERATED from OpenRouter's live catalog
+# by update_free_models.py (run on a schedule). Do NOT hand-edit the block
+# between the BEGIN/END AUTO FREE MODELS markers - it is rewritten on every
+# sync. To control which models land here, edit the tuning knobs
+# (EXCLUDE_PATTERNS, MIN_CONTEXT, MAX_*) in that script, not this file.
+#
+# The "free-chat" alias, "openrouter/*" wildcard, and router settings below are
+# static and safe to edit by hand.
+
+model_list:
+  # >>> BEGIN AUTO FREE MODELS (managed by update_free_models.py)
+
+  # openrouter/free - Free Models Router (200K ctx)
+  - model_name: text-chat
+    litellm_params:
+      model: openrouter/openrouter/free
+      api_key: os.environ/OPENROUTER_API_KEY
+    model_info:
+      supports_vision: false
+  # inclusionai/ling-3.1-flash - inclusionAI: Ling 3.1 Flash (262K ctx)
+  - model_name: text-chat
+    litellm_params:
+      model: openrouter/inclusionai/ling-3.1-flash
+      api_key: os.environ/OPENROUTER_API_KEY
+    model_info:
+      supports_vision: false
+  # apodex/apodex-1.1-mini:free - Apodex: Apodex 1.1 Mini (free) (262K ctx)
+  - model_name: text-chat
+    litellm_params:
+      model: openrouter/apodex/apodex-1.1-mini:free
+      api_key: os.environ/OPENROUTER_API_KEY
+    model_info:
+      supports_vision: false
+  # nvidia/nemotron-3.5-lightning:free - NVIDIA: Nemotron 3.5 Lightning (free) (1M ctx)
+  - model_name: text-chat
+    litellm_params:
+      model: openrouter/nvidia/nemotron-3.5-lightning:free
+      api_key: os.environ/OPENROUTER_API_KEY
+    model_info:
+      supports_vision: false
+  # nvidia/nemotron-3-ultra-550b-a55b:free - NVIDIA: Nemotron 3 Ultra (free) (1M ctx)
+  - model_name: text-chat
+    litellm_params:
+      model: openrouter/nvidia/nemotron-3-ultra-550b-a55b:free
+      api_key: os.environ/OPENROUTER_API_KEY
+    model_info:
+      supports_vision: false
+  # nvidia/nemotron-3-super-120b-a12b:free - NVIDIA: Nemotron 3 Super (free) (262K ctx)
+  - model_name: text-chat
+    litellm_params:
+      model: openrouter/nvidia/nemotron-3-super-120b-a12b:free
+      api_key: os.environ/OPENROUTER_API_KEY
+    model_info:
+      supports_vision: false
+  # nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free - NVIDIA: Nemotron 3 Nano Omni (free) (256K ctx)
+  - model_name: vision-chat
+    litellm_params:
+      model: openrouter/nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free
+      api_key: os.environ/OPENROUTER_API_KEY
+    model_info:
+      supports_vision: true
+  # google/gemma-4-26b-a4b-it:free - Google: Gemma 4 26B A4B  (free) (262K ctx)
+  - model_name: vision-chat
+    litellm_params:
+      model: openrouter/google/gemma-4-26b-a4b-it:free
+      api_key: os.environ/OPENROUTER_API_KEY
+    model_info:
+      supports_vision: true
+  # google/gemma-4-31b-it:free - Google: Gemma 4 31B (free) (262K ctx)
+  - model_name: vision-chat
+    litellm_params:
+      model: openrouter/google/gemma-4-31b-it:free
+      api_key: os.environ/OPENROUTER_API_KEY
+    model_info:
+      supports_vision: true
+  # <<< END AUTO FREE MODELS
+
+  # Single public alias: text requests use text-chat; image requests use vision-chat.
+  - model_name: free-chat
+    litellm_params:
+      model: auto_router/complexity_router
+      complexity_router_config:
+        tiers:
+          SIMPLE: text-chat
+          MEDIUM: text-chat
+          COMPLEX: text-chat
+          REASONING: vision-chat
+        default_model: vision-chat
+        modality_routing: true
+        modality_pin_override: true
+
+  # Catch-all wildcard to route any other OpenRouter models requested by name
+  - model_name: openrouter/*
+    litellm_params:
+      model: openrouter/*
+      api_key: os.environ/OPENROUTER_API_KEY
+
+router_settings:
+  routing_strategy: "simple-shuffle"    # Distribute requests across free deployments
+  num_retries: 5                        # Up to 5 retries to find an available endpoint
+  cooldown_time: 120                    # Cool down an unavailable/rate-limited endpoint for 2 mins
+  allowed_fails: 0                      # Immediately cool down on first failure
+  retry_after: 1                        # Wait 1s before switching to the next deployment
+  # Kill hung requests fast, then retry/reroute (verified with a stalling fake
+  # upstream: stream kills reroute when no content was sent yet; non-stream
+  # kills retry and reroute. A steady stream is never killed - this is a
+  # SILENCE gap limit, not a total-duration cap, so long answers are safe).
+  timeout: 20                           # Non-stream: kill after 20s with no response
+  stream_timeout: 20                    # Stream: kill after 20s of silence (no chunks)
+  allowed_fails_policy:
+    RateLimitErrorAllowedFails: 0          # HTTP 429
+    ServiceUnavailableErrorAllowedFails: 0  # HTTP 503 (high demand / capacity spikes)
+    InternalServerErrorAllowedFails: 0     # HTTP 500 / 502 / 504
+    BadGatewayErrorAllowedFails: 0         # HTTP 502
+    TimeoutErrorAllowedFails: 0            # HTTP 408 / request timeouts
+  retry_policy:
+    RateLimitErrorRetries: 5
+    InternalServerErrorRetries: 5
+    TimeoutErrorRetries: 3
+  # Reroute recoverable failures to a sibling pool instead of surfacing them.
+  # This is what catches streaming errors that arrive BEFORE the first content
+  # chunk (e.g. OpenRouter "provider_unavailable" arriving mid-stream) - without
+  # a fallback chain litellm returns the raw provider error to the client.
+  # Lookup order for the complexity-router alias is: the tier the router picked
+  # (text-chat / vision-chat) first, then the alias name (free-chat).
+  fallbacks:
+    - text-chat: ["vision-chat"]
+    - vision-chat: ["text-chat"]
+    - free-chat: ["text-chat", "vision-chat"]
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+
+litellm_settings:
+  drop_params: true
+  set_verbose: false
