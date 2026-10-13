@@ -118,6 +118,10 @@ services:
     container_name: apps-cloudflared
     command: ["tunnel", "run", "--token", "${APPS_TUNNEL_TOKEN:?Set APPS_TUNNEL_TOKEN in .env}"]
     restart: unless-stopped
+    # ssh.superseb.xyz inbound route terminates at the host's sshd
+    # (ssh://host.docker.internal:22); resolve it to the docker host gateway.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   apps-portal:
     image: nginx:alpine
