@@ -20,17 +20,17 @@ model_list:
       api_key: os.environ/OPENROUTER_API_KEY
     model_info:
       supports_vision: false
-  # inclusionai/ling-3.1-flash - inclusionAI: Ling 3.1 Flash (262K ctx)
+  # recursive/flint-v1.0:free - Recursive: Flint (free) (262K ctx)
   - model_name: text-chat
     litellm_params:
-      model: openrouter/inclusionai/ling-3.1-flash
+      model: openrouter/recursive/flint-v1.0:free
       api_key: os.environ/OPENROUTER_API_KEY
     model_info:
       supports_vision: false
-  # apodex/apodex-1.1-mini:free - Apodex: Apodex 1.1 Mini (free) (262K ctx)
+  # xingchen-agi/xing4.0-29b-a4b:free - XingChen: Xing4.0 29B A4B (free) (262K ctx)
   - model_name: text-chat
     litellm_params:
-      model: openrouter/apodex/apodex-1.1-mini:free
+      model: openrouter/xingchen-agi/xing4.0-29b-a4b:free
       api_key: os.environ/OPENROUTER_API_KEY
     model_info:
       supports_vision: false
@@ -48,13 +48,20 @@ model_list:
       api_key: os.environ/OPENROUTER_API_KEY
     model_info:
       supports_vision: false
-  # nvidia/nemotron-3-super-120b-a12b:free - NVIDIA: Nemotron 3 Super (free) (262K ctx)
-  - model_name: text-chat
+  # stealth/crouton-alpha - Crouton Alpha (1M ctx)
+  - model_name: vision-chat
     litellm_params:
-      model: openrouter/nvidia/nemotron-3-super-120b-a12b:free
+      model: openrouter/stealth/crouton-alpha
       api_key: os.environ/OPENROUTER_API_KEY
     model_info:
-      supports_vision: false
+      supports_vision: true
+  # nvidia/nemotron-3.5-super-vl:free - NVIDIA: Nemotron 3.5 Super VL (free) (1M ctx)
+  - model_name: vision-chat
+    litellm_params:
+      model: openrouter/nvidia/nemotron-3.5-super-vl:free
+      api_key: os.environ/OPENROUTER_API_KEY
+    model_info:
+      supports_vision: true
   # nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free - NVIDIA: Nemotron 3 Nano Omni (free) (256K ctx)
   - model_name: vision-chat
     litellm_params:
