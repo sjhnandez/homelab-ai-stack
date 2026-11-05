@@ -1,0 +1,106 @@
+server {
+    listen 80;
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # Docker embedded DNS resolver
+    resolver 127.0.0.11 valid=30s ipv6=off;
+
+    # Gzip Compression
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml text/javascript image/svg+xml;
+    gzip_min_length 256;
+
+    # Security Headers
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+
+    # Dynamic Config endpoint from SHOW_MEDIA_APPS environment variable
+    location = /config.js {
+        default_type application/javascript;
+        add_header Cache-Control "no-store, no-cache, must-revalidate, max-age=0" always;
+        add_header Pragma "no-cache" always;
+        return 200 'window.PORTAL_CONFIG = { showMediaApps: "${SHOW_MEDIA_APPS}".toLowerCase() === "true" };\n';
+    }
+
+    location = /config.json {
+        default_type application/json;
+        add_header Cache-Control "no-store, no-cache, must-revalidate, max-age=0" always;
+        add_header Pragma "no-cache" always;
+        return 200 '{"showMediaApps": "${SHOW_MEDIA_APPS}"}\n';
+    }
+
+    # Static UI Files
+    location = / {
+        try_files /index.html =404;
+        expires 1h;
+        add_header Cache-Control "public, no-transform";
+    }
+
+    # SearXNG Direct Search & Assets Proxy (allows search bar to work directly)
+    location /search {
+        set $upstream_searxng http://searxng:8080;
+        proxy_pass $upstream_searxng;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /static/ {
+        set $upstream_searxng http://searxng:8080;
+        proxy_pass $upstream_searxng;
+        proxy_set_header Host $host;
+        expires 1d;
+    }
+
+    location /autocompleter {
+        set $upstream_searxng http://searxng:8080;
+        proxy_pass $upstream_searxng;
+        proxy_set_header Host $host;
+    }
+
+    location /opensearch.xml {
+        set $upstream_searxng http://searxng:8080;
+        proxy_pass $upstream_searxng;
+        proxy_set_header Host $host;
+    }
+
+    # Internal Health Check Proxies for Portal Badges
+    location /health/openwebui {
+        set $upstream_openwebui http://open-webui:8080;
+        proxy_pass $upstream_openwebui/;
+        proxy_connect_timeout 2s;
+        proxy_read_timeout 3s;
+        proxy_send_timeout 2s;
+        proxy_set_header Host $host;
+    }
+
+    location /health/searxng {
+        set $upstream_searxng http://searxng:8080;
+        proxy_pass $upstream_searxng/;
+        proxy_connect_timeout 2s;
+        proxy_read_timeout 3s;
+        proxy_send_timeout 2s;
+        proxy_set_header Host $host;
+    }
+
+    location /health/jellyfin {
+        proxy_pass http://host.docker.internal:8096/health;
+        proxy_connect_timeout 2s;
+        proxy_read_timeout 3s;
+        proxy_send_timeout 2s;
+        proxy_set_header Host $host;
+    }
+
+    location /health/jellyseerr {
+        proxy_pass http://host.docker.internal:5055/api/v1/status;
+        proxy_connect_timeout 2s;
+        proxy_read_timeout 3s;
+        proxy_send_timeout 2s;
+        proxy_set_header Host $host;
+    }
+}

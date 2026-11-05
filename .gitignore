@@ -13,8 +13,14 @@ searxng/settings.yml
 # Private nested profile-site repository — never part of this repo
 profile/
 
-# Dashboard and runtime data directories (not published)
-portal/
+# Portal: the page, fonts and nginx template are tracked. Excluded: the
+# ta-plus modpack (generated elsewhere; large binaries and third-party jars),
+# local page backups, and an unused legacy nginx config.
+portal/public/ta-plus/
+portal/backup-*/
+portal/nginx.conf
+
+# Runtime data directories (not published)
 open-webui/
 ollama/
 
