@@ -18,19 +18,20 @@ server {
     add_header X-Frame-Options "SAMEORIGIN" always;
     add_header X-XSS-Protection "1; mode=block" always;
 
-    # Dynamic Config endpoint from SHOW_MEDIA_APPS environment variable
+    # Dynamic config from the SHOW_JELLYFIN / SHOW_JELLYSEERR env vars
+    # (each falls back to SHOW_MEDIA_APPS in docker-compose.yaml).
     location = /config.js {
         default_type application/javascript;
         add_header Cache-Control "no-store, no-cache, must-revalidate, max-age=0" always;
         add_header Pragma "no-cache" always;
-        return 200 'window.PORTAL_CONFIG = { showMediaApps: "${SHOW_MEDIA_APPS}".toLowerCase() === "true" };\n';
+        return 200 '(function () { var on = function (v) { return String(v).toLowerCase() === "true"; }; var c = { showJellyfin: on("${SHOW_JELLYFIN}"), showJellyseerr: on("${SHOW_JELLYSEERR}") }; c.showMediaApps = c.showJellyfin || c.showJellyseerr; window.PORTAL_CONFIG = c; })();\n';
     }
 
     location = /config.json {
         default_type application/json;
         add_header Cache-Control "no-store, no-cache, must-revalidate, max-age=0" always;
         add_header Pragma "no-cache" always;
-        return 200 '{"showMediaApps": "${SHOW_MEDIA_APPS}"}\n';
+        return 200 '{"showJellyfin": "${SHOW_JELLYFIN}", "showJellyseerr": "${SHOW_JELLYSEERR}"}\n';
     }
 
     # Static UI Files

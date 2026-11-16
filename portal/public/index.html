@@ -13,9 +13,11 @@
     document.write('<script src="/config.js?t=' + Date.now() + '"><\/script>');
   </script>
   <script>
-    if (window.PORTAL_CONFIG && window.PORTAL_CONFIG.showMediaApps) {
-      document.documentElement.classList.add('show-media-apps');
-    }
+    (function () {
+      var c = window.PORTAL_CONFIG || {};
+      if (c.showJellyfin) document.documentElement.classList.add('show-jellyfin');
+      if (c.showJellyseerr) document.documentElement.classList.add('show-jellyseerr');
+    })();
   </script>
   <style>
     /*
@@ -256,7 +258,8 @@
       display: none;
     }
 
-    .show-media-apps .media-card {
+    .show-jellyfin #card-jellyfin,
+    .show-jellyseerr #card-jellyseerr {
       display: grid;
     }
 
@@ -480,7 +483,26 @@
           </div>
         </a>
 
-        <!-- Jellyfin (Conditional: SHOW_MEDIA_APPS) -->
+        <!-- Routing Lab (Always Available) -->
+        <a href="https://lab.superseb.xyz" target="_blank" class="app-card" id="card-lab">
+          <div class="app-icon-wrap">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M14 4l2.29 2.29-2.88 2.88 1.42 1.42 2.88-2.88L20 10V4h-6zm-4 0H4v6l2.29-2.29 4.71 4.7V20h2v-8.41l-5.29-5.3L10 4z" />
+            </svg>
+          </div>
+          <div class="app-info">
+            <div class="app-title-row">
+              <span class="app-name">Routing Lab</span>
+              <span class="app-subtitle">LLM Failover Evidence</span>
+            </div>
+            <p class="app-desc">Fault-injection battery for the LiteLLM router, with live runs and a try-the-router chat.</p>
+          </div>
+          <div class="app-side">
+            <kbd class="app-arrow" aria-hidden="true">&#8629;</kbd>
+          </div>
+        </a>
+
+        <!-- Jellyfin (Conditional: SHOW_JELLYFIN, falls back to SHOW_MEDIA_APPS) -->
         <a href="https://jellyfin.superseb.xyz" target="_blank" class="app-card media-card" id="card-jellyfin">
           <div class="app-icon-wrap">
             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -503,7 +525,7 @@
           </div>
         </a>
 
-        <!-- Jellyseerr (Conditional: SHOW_MEDIA_APPS) -->
+        <!-- Jellyseerr (Conditional: SHOW_JELLYSEERR, falls back to SHOW_MEDIA_APPS) -->
         <a href="https://jellyseerr.superseb.xyz" target="_blank" class="app-card media-card" id="card-jellyseerr">
           <div class="app-icon-wrap">
             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -610,10 +632,9 @@
 
     function runAllHealthChecks() {
       checkServiceHealth('openwebui', '/health/openwebui');
-      if (window.PORTAL_CONFIG && window.PORTAL_CONFIG.showMediaApps) {
-        checkServiceHealth('jellyfin', '/health/jellyfin');
-        checkServiceHealth('jellyseerr', '/health/jellyseerr');
-      }
+      const config = window.PORTAL_CONFIG || {};
+      if (config.showJellyfin) checkServiceHealth('jellyfin', '/health/jellyfin');
+      if (config.showJellyseerr) checkServiceHealth('jellyseerr', '/health/jellyseerr');
     }
 
     runAllHealthChecks();

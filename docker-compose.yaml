@@ -136,7 +136,9 @@ services:
       - ./portal/nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
     environment:
       - TZ=America/New_York
-      - SHOW_MEDIA_APPS=${SHOW_MEDIA_APPS:-false}
+      # Per-app portal switches; each falls back to SHOW_MEDIA_APPS when unset.
+      - SHOW_JELLYFIN=${SHOW_JELLYFIN:-${SHOW_MEDIA_APPS:-false}}
+      - SHOW_JELLYSEERR=${SHOW_JELLYSEERR:-${SHOW_MEDIA_APPS:-false}}
     depends_on:
       - open-webui
       - searxng
