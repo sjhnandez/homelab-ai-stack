@@ -35,10 +35,10 @@ server {
     }
 
     # Static UI Files
+    # no-cache: browsers revalidate (cheap 304) so launcher edits show up at once.
     location = / {
         try_files /index.html =404;
-        expires 1h;
-        add_header Cache-Control "public, no-transform";
+        add_header Cache-Control "no-cache, no-transform" always;
     }
 
     # SearXNG Direct Search & Assets Proxy (allows search bar to work directly)
@@ -83,6 +83,24 @@ server {
     location /health/searxng {
         set $upstream_searxng http://searxng:8080;
         proxy_pass $upstream_searxng/;
+        proxy_connect_timeout 2s;
+        proxy_read_timeout 3s;
+        proxy_send_timeout 2s;
+        proxy_set_header Host $host;
+    }
+
+    location /health/profile {
+        set $upstream_profile http://apps-profile:80;
+        proxy_pass $upstream_profile/;
+        proxy_connect_timeout 2s;
+        proxy_read_timeout 3s;
+        proxy_send_timeout 2s;
+        proxy_set_header Host $host;
+    }
+
+    location /health/lab {
+        set $upstream_lab http://lab-api:8000;
+        proxy_pass $upstream_lab/api/health;
         proxy_connect_timeout 2s;
         proxy_read_timeout 3s;
         proxy_send_timeout 2s;

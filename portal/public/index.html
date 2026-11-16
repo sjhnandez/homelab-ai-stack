@@ -479,6 +479,10 @@
             <p class="app-desc">Experience and projects, with the CV in English and Spanish.</p>
           </div>
           <div class="app-side">
+            <div class="status-badge checking" id="status-profile">
+              <div class="status-dot"></div>
+              <span class="status-text">Checking</span>
+            </div>
             <kbd class="app-arrow" aria-hidden="true">&#8629;</kbd>
           </div>
         </a>
@@ -498,6 +502,10 @@
             <p class="app-desc">Fault-injection battery for the LiteLLM router, with live runs and a try-the-router chat.</p>
           </div>
           <div class="app-side">
+            <div class="status-badge checking" id="status-lab">
+              <div class="status-dot"></div>
+              <span class="status-text">Checking</span>
+            </div>
             <kbd class="app-arrow" aria-hidden="true">&#8629;</kbd>
           </div>
         </a>
@@ -632,6 +640,8 @@
 
     function runAllHealthChecks() {
       checkServiceHealth('openwebui', '/health/openwebui');
+      checkServiceHealth('profile', '/health/profile');
+      checkServiceHealth('lab', '/health/lab');
       const config = window.PORTAL_CONFIG || {};
       if (config.showJellyfin) checkServiceHealth('jellyfin', '/health/jellyfin');
       if (config.showJellyseerr) checkServiceHealth('jellyseerr', '/health/jellyseerr');
